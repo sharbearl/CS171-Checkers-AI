@@ -37,27 +37,38 @@ class StudentAI():
         return move
 
     def simulate_one_game(self, cur: Node):
-        while not cur.is_win():
+        """ Simulates a single game by playing random moves until an outcome is reached 
+            @return: tuple containing the terminal node and the utility value representing win/loss
+        """
+        while cur.is_win() != -1: # While current node is non terminal
             moves = self.board.get_all_possible_moves(self.color)
-            move = random.choice(moves)
-            cur = cur.add_child(move)
+            move = random.choice(moves) # Choose random move to make
+            
+            self.board.make_move(move,self.color) # Perform move
+            cur = cur.add_child(move) # Add child
 
-        return cur
+        return (cur, cur.is_win())
 
 
     
-    def simulate_games(self, root, moves):
+    def simulate_games(self, root: Node):
+        """ Simulates games for the given root node 
+            @params: Node represneting the root
+                     List of possible Moves that can be made
+        """
         moves = self.board.get_all_possible_moves(self.color)
         root.add_children(moves) # Expand node
 
-        for child in root.get_children():
-            leaf = self.simulate_one_game(child) ## This adds one child node per node, 
+        for child in root.get_children(): # Simulate one game for each child
+            leaf, result = self.simulate_one_game(child) ## This adds one child node per node, 
                                           ## Might need to figure a way to not readd the child during expansion
-            update_path(leaf)
+            leaf.add_child.update_node(result, self.board)
 
-        best_child = root.best_child ## repeat continuously
+        best_child = root.best_child ## Choose the best node to expand
+                                     ## repeat continuously
                                      ## if all children are expanded already, then choose its best child
-        simulate_game(best_child)
+        self.board.make_move(best_child.get_move(),self.color) # Perform move
+        self.simulate_games(best_child) ## Need to make sure to undo all the nodes
 
 
 
@@ -70,9 +81,9 @@ class Node:
         self.wins = 0
         self.untried = []
 
-    def get_state(self) -> Board:
+    def get_move(self) -> Board:
         """ Returns state of the board at current node """
-        return self.state
+        return self.move_made
     
     def get_parent(self) -> Node:
         """ Returns parent node of current node """
@@ -123,17 +134,23 @@ class Node:
         for move in moves:
             self.add_child(move)
 
-    def is_win(self):
+    def is_win(self) -> int: ## Maybe this doesn't need to be a function, might just call in the simulate_one_game function
+        """ Returns when a is made
+            @return: -1 if non terminal node
+                     0 if loss
+                     1 if won
+        """
         pass
 
-    def update_node(self, win):
-        """ win = 0 if loss
-            win = 1 if win/tie
+    def update_node(self, win: int, board: Board):
+        """ Backtracks through tree and updates values while undoing move made on Board
+            win = 0 if loss; win = 1 if win/tie
         """
         if not self.parent:
             return
         self.total_games += 1
         self.wins += win
+        board.undo()
         self.parent.update_node(win)
     
 
