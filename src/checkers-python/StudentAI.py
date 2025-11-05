@@ -5,6 +5,7 @@ from BoardClasses import Move
 from BoardClasses import Board
 #The following part should be completed by students.
 #Students can modify anything except the class name and exisiting functions and varibles.
+EXPLORATION_PARAM = 1 ## Adjust c constant for better results
 class StudentAI():
 
     def __init__(self,col,row,p):
@@ -23,52 +24,57 @@ class StudentAI():
             self.color = 1
         # moves = self.board.get_all_possible_moves(self.color)
 
-        # root = Node(board_state)
-        # for move in moves:
-        #     Node(move)
+        root = Node(None, None) # If move is none, this is the top of the tree, 
+                                ## May need to have something to check this
 
+        self.simulate_games(root) # Simulate games -- currently
+        move = root.best_child(EXPLORATION_PARAM).get_move()
 
-
-
-        index = randint(0,len(moves)-1)
-        inner_index =  randint(0,len(moves[index])-1)
-        move = moves[index][inner_index]
+        # index = randint(0,len(moves)-1)
+        # inner_index =  randint(0,len(moves[index])-1)
+        # move = moves[index][inner_index]
         self.board.make_move(move,self.color)
         return move
-
-    def simulate_one_game(self, cur: Node):
-        """ Simulates a single game by playing random moves until an outcome is reached 
-            @return: tuple containing the terminal node and the utility value representing win/loss
-        """
-        while cur.is_win() != -1: # While current node is non terminal
-            moves = self.board.get_all_possible_moves(self.color)
-            move = random.choice(moves) # Choose random move to make
-            
-            self.board.make_move(move,self.color) # Perform move
-            cur = cur.add_child(move) # Add child
-
-        return (cur, cur.is_win())
-
-
     
-    def simulate_games(self, root: Node):
+
+    def simulate_games(self, root: Node, limit: int) -> None:
         """ Simulates games for the given root node 
-            @params: Node represneting the root
-                     List of possible Moves that can be made
+            @params: Node representing the root
+                     integer representing the number of times to run simulations
         """
         moves = self.board.get_all_possible_moves(self.color)
         root.add_children(moves) # Expand node
 
         for child in root.get_children(): # Simulate one game for each child
             leaf, result = self.simulate_one_game(child) ## This adds one child node per node, 
-                                          ## Might need to figure a way to not readd the child during expansion
-            leaf.add_child.update_node(result, self.board)
+                                                         ## might need to figure a way to not readd the child during expansion
+            leaf.update_node(result, self.board)
 
-        best_child = root.best_child ## Choose the best node to expand
+        for _ in range(limit):
+            best_child = root.best_child(EXPLORATION_PARAM) ## Choose the best node to expand
                                      ## repeat continuously
                                      ## if all children are expanded already, then choose its best child
-        self.board.make_move(best_child.get_move(),self.color) # Perform move
-        self.simulate_games(best_child) ## Need to make sure to undo all the nodes
+            while best_child.is_unexplored(): ## This runs through the tree until you get to a bottom-most
+                                              ## unexplored child, currently unwritten
+                self.board.make_move(best_child.get_move()) # Perform move
+                best_child = root.best_child(EXPLORATION_PARAM)
+
+            leaf, result = self.simulate_one_game(child) 
+            leaf.update_node(result, self.board)
+        # self.simulate_games(best_child) ## Need to make sure to undo all the nodes
+
+    def simulate_one_game(self, cur: Node):
+        """ Simulates a single game by playing random moves until an outcome is reached 
+            @return: tuple containing the terminal node and the utility value representing win/loss
+        """
+        while self.board.is_win() != -1: # While current node is non terminal
+            moves = self.board.get_all_possible_moves(self.color)
+            move = random.choice(moves) # Choose random move to make
+            
+            self.board.make_move(move,self.color) # Perform move
+            cur = cur.add_child(move) # Add child
+
+        return (cur, self.board.is_win())
 
 
 
@@ -81,6 +87,11 @@ class Node:
         self.wins = 0
         self.untried = []
 
+    def __eq__(self, right: Node) -> bool:
+        """ Equal operator returns true if parent and move_made are the same """
+        return self.move_made == right.move_made and self.parent == right.parent
+
+    ## The following getters may not all be necessary, remove if unneeded
     def get_move(self) -> Board:
         """ Returns state of the board at current node """
         return self.move_made
@@ -125,12 +136,16 @@ class Node:
             random.choice(self.children)
         return best_child
     
-    def add_child(self, move: Move):
+    def add_child(self, move: Move) -> Node:
+        """ Creates a child node with the given move 
+            @return: newly created node
+        """
         new_node = Node(self, move)
         self.children.append(new_node)
         return new_node
 
-    def add_children(self, moves: List[Move]):
+    def add_children(self, moves: List[Move]) -> None:
+        """ Creates children node for each move """
         for move in moves:
             self.add_child(move)
 
