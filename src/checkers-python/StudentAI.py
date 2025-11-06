@@ -22,6 +22,7 @@ class StudentAI():
             self.board.make_move(move,self.opponent[self.color])
         else:
             self.color = 1
+
         # moves = self.board.get_all_possible_moves(self.color)
 
         root = Node(None, None) # If move is none, this is the top of the tree, 
@@ -79,23 +80,19 @@ class StudentAI():
 
 
 class Node:
-    def __init__(self, state: Any, parent: Node, move: Move) -> None:
-        self.move_made = move ## instead of state maybe save the move that gets you here?
+    def __init__(self, parent: Node, color, move: Move, moves: List[Move]) -> None:
+        self.move = move ## instead of state maybe save the move that gets you here?
         self.parent = parent
         self.children = []
         self.total_games = 0
         self.wins = 0
-        self.untried = []
-
-    def __eq__(self, right: Node) -> bool:
-        """ Equal operator returns true if parent and move_made are the same """
-        return self.move_made == right.move_made and self.parent == right.parent
-
-    ## The following getters may not all be necessary, remove if unneeded
-    def get_move(self) -> Board:
-        """ Returns state of the board at current node """
-        return self.move_made
+        self.untried_moves = moves
+        self.color = color
     
+    def get_color(self):
+        """ Returns color of node's turn """
+        return self.color
+
     def get_parent(self) -> Node:
         """ Returns parent node of current node """
         return self.parent
@@ -103,6 +100,10 @@ class Node:
     def get_children(self) -> List[Node]:
         """ Returns a list of nodes representing the children of the current node """
         return self.children
+
+    def has_children(self) -> bool:
+    """ True or False if node contains children """
+        return len(self.children) != 0
     
     def get_total_games(self) -> int:
         """ Returns the number of total times the node has been visited/played """
@@ -116,12 +117,12 @@ class Node:
     #     """ Returns a list of possible moves the node can take """
     #     return self.total_games
     
-    def get_untried(self) -> List[Move]:
+    def get_untried_moves(self) -> List[Move]:
         """ Returns a list of moves not yet tried """
-        return self.untried
+        return self.untried_moves
 
     def is_fully_expanded(self)-> bool:
-        return len(self.untried) == 0
+        return len(self.untried_moves) == 0
 
     def get_best_child(self, c = EXPLORATION_PARAM) -> Node:
         """ Returns the child with the best UCT value of the current node 
@@ -134,17 +135,15 @@ class Node:
             if uct > score:
                 best_child = child
                 score = uct
-            
+           
         if not best_child:
             random.choice(self.children)
         return best_child
     
-    def add_child(self, move: Move) -> Node:
-        """ Creates a child node with the given move 
-            @return: newly created node
-        """
-        new_node = Node(self, move)
+    def add_child(self, color, move: Move, moves: List[Move]):
+        new_node = Node(self, color, move, moves)
         self.children.append(new_node)
+        self.untried_moves.remove(move)
         return new_node
 
     def add_children(self, moves: List[Move]) -> None:
@@ -152,56 +151,76 @@ class Node:
         for move in moves:
             self.add_child(move)
 
-    def is_win(self) -> int: ## Maybe this doesn't need to be a function, might just call in the simulate_one_game function
-        """ Returns when a is made
-            @return: -1 if non terminal node
-                     0 if loss
-                     1 if won
+    def update_node(self, result: int):
+        """ result = 0 if loss
+            result = 1 if win/tie
         """
-        pass
-
-    def update_node(self, win: int, board: Board):
-        """ Backtracks through tree and updates values while undoing move made on Board
-            win = 0 if loss; win = 1 if win/tie
-        """
-        if not self.parent:
-            return
+        # if not self.parent:
+        #     return    # I don't think this is needed? We will only call this for the selected node
+                        # since we are only looking at moves ahead
         self.total_games += 1
-        self.wins += win
-        board.undo()
+        self.wins += result
         # self.parent.update_node(win) # parent nodes will update when backpropagating
     
 
 class MCTS:
-    def __init__(self, color, num_simulations):
-        self.color = color
+    def __init__(self, num_simulations=500, color, board: Board):
         self.num_simulations = num_simulations
+        self.color = color
+        self.board = board
     
     def select(self, node: Node):
         """ Select node to expand based on UCT """
         while node.get_children() and node.is_fully_expanded(): # The node has children and every child has been added to compute UCT
+            color = node.get_color()
             node = node.get_best_child()
+            self.board.make_move(node.get_move(), color)
         return node
 
-    def expand(self, node: Node, color, board: Board):
+    def expand(self, node: Node):
         """ Expand children of selected node """
-        untried_moves = node.get_untried()
-        if not untried_moves:   # Check if there are possible moves; if empty, populate the list
-            untried_moves = [move for moves in board.get_all_possible_moves(color) for move in moves]
-        if not node.untried_moves:  # If stil empty after populate, reached terminal node
+        # untried_moves = node.get_untried_moves()
+        # if not untried_moves:   # Check if there are possible moves; if empty, populate the list
+        #     untried_moves = [move for moves in board.get_all_possible_moves(color) for move in moves]
+        # if node.is_fully_expanded():  # If stil empty after populate, reached terminal node
+        #     return node
+        # move = untried_moves.pop(random.randint(len(untried_moves))) # Pick a random child to expand
+        # board.make_move(move, color)
+        # child = node.add_child(move)
+        # return child
+        if self.board.is_win(node.get_color()) == 0: # Losing move
             return node
-        move = untried_moves.pop(random.randint(len(untried_moves))) # Pick a random child to expand
-        board.make_move(move, color)
-        child = node.add_child(move)
-        return child
+        move = random.choice(node.get_untried_moves())
+        self.board.make_move(move, node.get_color())
+        moves = self.board.get_all_possible_moves(3-node.get_color())
+        return node.add_child(3-node.get_color(), move, moves)  # Sharon: Is this the right color for the child?
     
-    def simulate(self, color, board: Board):
+    def simulate(self, node: Node):
         """ Simulate games from child node """
+        i = 0
+        color = node.get_color()
+        while self.board.is_win() == 0: # No winner/loser determined yet
+            moves = self.board.get_all_possible_moves(color)
+            move = random.choice(moves)
+            self.board.make_move(move, color)
+            color = 1 if color == 2 else color == 2
+            i += 1
+        result = self.board.is_win(color)
+        for _ in range(i):
+            self.board.undo()
+        return 1 if node.get_color() == result or node.get_color() == -1 else 0
     
-    def backpropagate(self, node: Node, win: int, board: Board):
+    def backpropagate(self, node: Node, result):
         """ Backpropagate and update statistics.
             win = 0 if loss
             win = 1 if win/tie """
+        if node == None:
+            return
+        self.board.undo()
+        node.update_node(result)
+        self.backpropagate(node.get_parent(), 1 - result)
+
+    def select_move(self, node: Node)
 
     def search(self, root_board: Board) -> Move:
         """ Do search for best move to return """
