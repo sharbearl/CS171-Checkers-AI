@@ -45,10 +45,10 @@ class Node:
         self.wins = 0               # The number of times the node results in a winning result
         self.untried_moves = moves  # A list of Moves that have not been made into a child node
         self.color = color          # The color of the player at this node
-    
-    def get_color(self) -> int:
-        """ Returns color of node's turn """
-        return self.color
+
+    def get_move(self) -> Move:
+        """ Returns move that leads to current node """
+        return self.move
 
     def get_parent(self) -> Node:
         """ Returns parent node of current node """
@@ -57,6 +57,10 @@ class Node:
     def get_untried_moves(self) -> List[Move]:
         """ Returns a list of moves not yet tried """
         return self.untried_moves
+    
+    def get_color(self) -> int:
+        """ Returns color of node's turn, 1 if black, 2 if white """
+        return self.color
 
     def has_children(self) -> bool:
         """ Returns True if the node has at least one child node
@@ -99,9 +103,9 @@ class Node:
                      moves - List of possible Moves from this node
             @return: Node corresponding to the newly created child node
         """
-        new_node = Node(self, 3 - self.color, move, moves)
-        self.children.append(new_node)
-        self.untried_moves.remove(move)
+        new_node = Node(self, 3 - self.color, move, moves) # Flip color, child is opposite color from current node
+        self.children.append(new_node)                     # Add child to children list
+        self.untried_moves.remove(move)                    # Remove move as a possible move
         return new_node
 
     def add_children(self, moves: List[Move]) -> None:
