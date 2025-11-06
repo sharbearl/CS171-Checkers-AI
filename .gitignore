@@ -1,0 +1,5 @@
+__pycache__/
+.vscode/
+results.txt
+src/checkers-cpp/
+src/checkers-java/
