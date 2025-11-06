@@ -1,6 +1,6 @@
-import Math
+import math
 import random
-from random import randint
+from typing import List
 from BoardClasses import Move
 from BoardClasses import Board
 #The following part should be completed by students.
@@ -24,33 +24,35 @@ class StudentAI():
             self.color = 1
 
         moves = self.board.get_all_possible_moves(self.color)
+        ## TODO: If only one move, just perform that move
+        root = Node(None, self.color, None, moves)  # Create first node of the tree
+        tree = MCTS(self.board)                     # Create tree structure
+        move = tree.search(root)                    # Return the best move to make from the root node
 
-        root = Node(None, None, moves)          # Create first node of the tree
-        tree = MCTS(self.board)                 # Create tree structure
-
-        move = tree.search(root)                # Return the best move to make from the root node
-        self.board.make_move(move,self.color)   # Perform the move
+        self.board.make_move(move,self.color)           # Perform the move
 
         return move
 
 
 
 class Node:
-    def __init__(self, parent: Node, color: int, move: Move, moves: List[Move]) -> None:
+    def __init__(self, parent: "Node", color: int, move: Move, moves: List[Move]) -> None:
         """ Initialize values of a Node """
-        self.move = move            # The Move which brings you to this node
-        self.parent = parent        # The Node that comes before this node
-        self.children = []          # A list of Nodes representing the children nodes
-        self.total_games = 0        # The number of times the node has been visited
-        self.wins = 0               # The number of times the node results in a winning result
-        self.untried_moves = moves  # A list of Moves that have not been made into a child node
-        self.color = color          # The color of the player at this node
+        self.move = move             # The Move which brings you to this node
+        self.parent = parent         # The Node that comes before this node
+        self.children = []           # A list of Nodes representing the children nodes
+        self.total_games = 0         # The number of times the node has been visited
+        self.wins = 0                # The number of times the node results in a winning result
+        self.untried_moves = []      # A list of Moves that have not been made into a child node
+        for possible_moves in moves: # Add all moves within inner lists of moves
+            self.untried_moves.extend(possible_moves)
+        self.color = color           # The color of the player at this node
 
     def get_move(self) -> Move:
         """ Returns move that leads to current node """
         return self.move
 
-    def get_parent(self) -> Node:
+    def get_parent(self) -> "Node":
         """ Returns parent node of current node """
         return self.parent
     
@@ -74,7 +76,7 @@ class Node:
         """
         return len(self.untried_moves) == 0
 
-    def get_best_child(self, c = EXPLORATION_PARAM) -> Node:
+    def get_best_child(self, c = EXPLORATION_PARAM) -> "Node":
         """ Returns the child with the best UCT value of the current node 
             UCT = w_i/s_i + c * sqrt(ln(s_p)/s_i)
                 i = current node
@@ -87,7 +89,7 @@ class Node:
         best_child = None               # Start best child as none
         score = 0                       # Track UCT score of the best child
         for child in self.children:     # Run through each child node
-            uct = (self.wins / self.total_games) + c * Math.sqrt(Math.ln(self.parent.total_games) / self.total_games)
+            uct = (child.wins / child.total_games) + c * math.sqrt(math.log(self.total_games) / child.total_games)
             if uct > score:             # If the UCT is greater than the current best score, replace
                 best_child = child
                 score = uct
@@ -96,7 +98,7 @@ class Node:
             random.choice(self.children)
         return best_child
     
-    def add_child(self, move: Move, moves: List[Move]) -> Node:
+    def add_child(self, move: Move, moves: List[Move]) -> "Node":
         """ Adds a new child node to the current node and
             removes the corresponding move from untried_moves
             @param:  move - Move representing the move that brings you to this node
@@ -160,12 +162,16 @@ class MCTS:
         color = node.get_color()                                # Tracks the color of the current move
         while self.board.is_win(color) == 0:                    # While no outcome has been determined yet
             moves = self.board.get_all_possible_moves(color)    # Get all possible moves according to color player
-            move = random.choice(moves)                         # Randomly select a move
+            # print(self.board.is_win(color))
+            # print(self.board.get_all_possible_moves(color))
+            move = random.choice(random.choice(moves))          # Randomly select a move
             self.board.make_move(move, color)                   # Perform move
+            # self.board.show_board()
+            # print("simulated", i)
             color = 3 - color                                   # Swap color, 1 if color was 2, 2 if color was 1
             i += 1                                              # Increase move counter by 1
         result = self.board.is_win(color)                       # -1 for tie, 1 for black win, 2 for white win
-        for _ in range(i):                                      # Undo all moves back to child node
+        for j in range(i - 1):                                  # Undo all moves back to child node
             self.board.undo()
         return 1 if node.get_color() == result or node.get_color() == -1 else 0 # 1 if winner is same as node color
                                                                                 # or if tie, otherwise 0
@@ -178,6 +184,7 @@ class MCTS:
         if node == None:                                  # If node is none, then this is the tree root node
             return
         self.board.undo()                                 # Undo move
+        # self.board.show_board()
         node.update_node(reward)                          # Update the values of the current node
         self.backpropagate(node.get_parent(), 1 - reward) # Propagate to previous node, flip reward value
 
@@ -194,7 +201,7 @@ class MCTS:
             @return: Move representing best move based on UCT value
         """
         for _ in range(self.num_simulations): # Runs for specified number of iterations
-            leaf = self.select()              # Select a leaf node to perform expansion
+            leaf = self.select(node)              # Select a leaf node to perform expansion
             child = self.expand(leaf)         # Create child node from leaf node
             reward = self.simulate(child)     # Simulate a game from the child node and retrieve the outcome
             self.backpropagate(child, reward) # Update all previous values based on the reward outcome
