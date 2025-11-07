@@ -146,7 +146,7 @@ class MCTS:
             @param:  node - Node selected to expand
             @return: Newly created expanded child Node
         """
-        if self.board.is_win(node.get_color()) != 0:                    # Node is terminal, no expansion possible
+        if self.board.is_win(3 - node.get_color()) != 0:                    # Node is terminal, no expansion possible
             return node
         move = random.choice(node.get_untried_moves())                  # Pick a random move to create expanded node
         self.board.make_move(move, node.get_color())                    # Perform move
