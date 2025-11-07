@@ -3,3 +3,5 @@ __pycache__/
 results.txt
 src/checkers-cpp/
 src/checkers-java/
+Game_Run.py
+*.zip
