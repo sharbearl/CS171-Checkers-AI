@@ -6,9 +6,7 @@ from BoardClasses import Board
 #The following part should be completed by students.
 #Students can modify anything except the class name and exisiting functions and varibles.
 EXPLORATION_PARAM = 1 # C constant for UCT calculations
-### For testing purposes
-# file = open("results.txt", "a")
-###
+
 class StudentAI():
 
     def __init__(self,col,row,p):
@@ -163,18 +161,14 @@ class MCTS:
         """
         i = 0                                                   # Tracks how many simulated moves were made
         color = node.get_color()                                # Tracks the color of the current move
-        while self.board.is_win(3 - color) == 0:                    # While no outcome has been determined yet
+        while self.board.is_win(3 - color) == 0:                # While no outcome has been determined yet
             moves = self.board.get_all_possible_moves(color)    # Get all possible moves according to color player
-            # print(color, file=file)
-            # print(self.board.get_all_possible_moves(color))
             move = random.choice(random.choice(moves))          # Randomly select a move
             self.board.make_move(move, color)                   # Perform move
-            # self.board.show_board(file)
-            # print("simulated", i, file=file)
             color = 3 - color                                   # Swap color, 1 if color was 2, 2 if color was 1
             i += 1                                              # Increase move counter by 1
         result = self.board.is_win(color)                       # -1 for tie, 1 for black win, 2 for white win
-        for _ in range(i - 1):    # double check                              # Undo all moves back to child node
+        for _ in range(i):                                      # Undo all moves back to child node
             self.board.undo()
         return 1 if node.get_color() == result or node.get_color() == -1 else 0 # 1 if winner is same as node color
                                                                                 # or if tie, otherwise 0
@@ -186,10 +180,10 @@ class MCTS:
         """
         if node == None:                                  # If node is none, then this is the tree root node
             return
-        self.board.undo()                                 # Undo move
-        # print("undoing move", file=file)
-        # self.board.show_board(file)
         node.update_node(reward)                          # Update the values of the current node
+        if node.get_parent() == None:                     # If parent node is none, no more propagation
+            return
+        self.board.undo()                                 # Undo move
         self.backpropagate(node.get_parent(), 1 - reward) # Propagate to previous node, flip reward value
 
     def select_move(self, node: Node) -> Move:
@@ -205,7 +199,7 @@ class MCTS:
             @return: Move representing best move based on UCT value
         """
         for _ in range(self.num_simulations): # Runs for specified number of iterations
-            leaf = self.select(node)              # Select a leaf node to perform expansion
+            leaf = self.select(node)          # Select a leaf node to perform expansion
             child = self.expand(leaf)         # Create child node from leaf node
             reward = self.simulate(child)     # Simulate a game from the child node and retrieve the outcome
             self.backpropagate(child, reward) # Update all previous values based on the reward outcome
