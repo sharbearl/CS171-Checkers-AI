@@ -25,10 +25,13 @@ class StudentAI():
             self.color = 1
 
         moves = self.board.get_all_possible_moves(self.color)
-        ## TODO: If only one move, just perform that move
-        root = Node(None, self.color, None, moves)  # Create first node of the tree
-        tree = MCTS(self.board)                     # Create tree structure
-        move = tree.search(root)                    # Return the best move to make from the root node
+        
+        if len(moves) == 1 and len(moves[0]) == 1:      # If only one move, just perform that move
+            move = moves[0][0]
+        else:
+            root = Node(None, self.color, None, moves)  # Create first node of the tree
+            tree = MCTS(self.board)                     # Create tree structure
+            move = tree.search(root)                    # Return the best move to make from the root node
 
         self.board.make_move(move,self.color)           # Perform the move
 
