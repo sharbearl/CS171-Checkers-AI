@@ -18,22 +18,27 @@ class StudentAI():
         self.color = ''
         self.opponent = {1:2,2:1}
         self.color = 2
+        self.root = None
     def get_move(self,move):
         if len(move) != 0:
             self.board.make_move(move,self.opponent[self.color])
+            if self.root:                               # Update with opponent's move
+                self.root = self.root.make_move(move)
         else:
             self.color = 1
 
         moves = self.board.get_all_possible_moves(self.color)
+        if self.root == None:                           # Create first node of the tree if it doesn't exist
+            self.root = Node(None, self.color, None, moves)
         
         if len(moves) == 1 and len(moves[0]) == 1:      # If only one move, just perform that move
             move = moves[0][0]
         else:
-            root = Node(None, self.color, None, moves)  # Create first node of the tree
             tree = MCTS(self.board)                     # Create tree structure
-            move = tree.search(root)                    # Return the best move to make from the root node
+            move = tree.search(self.root)               # Return the best move to make from the root node
 
         self.board.make_move(move,self.color)           # Perform the move
+        self.root = self.root.make_move(move)
 
         return move
 
@@ -125,6 +130,18 @@ class Node:
         """
         self.total_games += 1
         self.wins += result
+
+    def make_move(self, move: Move) -> "Node":
+        """ Returns the node corresponding to the move 
+            @param: move - the move to make
+            @return: Node corresponding to the given move
+                     None if node with given move is not found
+        """
+        for child in self.children:
+            if child.get_move() == move:
+                return child
+
+        return None
     
 
 class MCTS:
