@@ -204,13 +204,15 @@ class MCTS:
         color = node.get_color()                                # Tracks the color of the current move
         result = node.board.is_win(color)
         board_copy = copy_board(node.board)
-        while result == 0:                # While no outcome has been determined yet
+        deepest_run = 0
+        while result == 0 and deepest_run < 100:                # While no outcome has been determined yet
             color = 3 - color                                   # Swap color, 1 if color was 2, 2 if color was 1
             moves = board_copy.get_all_possible_moves(color)    # Get all possible moves according to color player
             move = random.choice(random.choice(moves))          # Randomly select a move
             board_copy.make_move(move, color)                   # Perform move
             result = board_copy.is_win(color)                       # -1 for tie, 1 for black win, 2 for white win
-        return 1 if node.get_color() == result or result == -1 else 0 # 1 if winner is same as node color
+            deepest_run += 1
+        return 1 if node.get_color() == result else 0 # 1 if winner is same as node color
                                                                                 # or if tie, otherwise 0
        
     
