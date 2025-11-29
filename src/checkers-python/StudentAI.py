@@ -7,7 +7,7 @@ from BoardClasses import Checker
 #The following part should be completed by students.
 #Students can modify anything except the class name and exisiting functions and varibles.
 EXPLORATION_PARAM = .5 # C constant for UCT calculations
-
+# file=open("results.txt","a")
 class StudentAI():
 
     def __init__(self,col,row,p):
@@ -27,6 +27,7 @@ class StudentAI():
             self.color = 1
 
         moves = self.board.get_all_possible_moves(self.color)
+        # print("New turn", file=file)
         
         if len(moves) == 1 and len(moves[0]) == 1:                          # If only one move, just perform that move
             move = moves[0][0]
@@ -36,7 +37,7 @@ class StudentAI():
             move = tree.search(root)                                        # Return the best move to make from the root node
 
         self.board.make_move(move,self.color)                               # Perform the move
-
+        # print(file=file)
         return move
 
 
@@ -151,10 +152,17 @@ class Node:
 
     def update_node(self, result: int) -> None:
         """ Updates the score of the node based on the result
-            @param: result - reward value where 1 is a win, 0 is a loss
+            @param: value representing the result of a game
+                    1 if black wins
+                    2 if white wins
+                    0 if no winner has been determined yet
+                    -1 if tied
         """
         self.total_games += 1
-        self.wins += result
+        if result == self.prev_color:
+            self.wins += 1
+        elif result == -1:
+            self.wins += .2
 
     def make_move(self, move: Move) -> "Node":
         """ Returns the node corresponding to the move 
@@ -170,7 +178,7 @@ class Node:
 
 
 class MCTS:
-    def __init__(self, num_simulations=500):
+    def __init__(self, num_simulations=700):
         """ Initialize values of a Monte Carlo Tree Search """
         self.num_simulations = num_simulations  # Number of iterations to run
     
@@ -198,35 +206,42 @@ class MCTS:
     def simulate(self, node: Node) -> int:
         """ Simulate games from child node 
             @param:  node - Node returned from expansion
-            @return: value representing the reward from the result
-                     1 if win, 0 if loss
+            @return: value representing the result of a game
+                     1 if black wins
+                     2 if white wins
+                     0 if no winner has been determined yet
+                     -1 if tied
         """
         color = node.get_color()                                # Tracks the color of the current move
-        result = node.board.is_win(color)
+        result = node.board.is_win(color)                       
+        if result != 0:                                         # If terminal, return without simulation
+            return result
+        
         board_copy = copy_board(node.board)
         deepest_run = 0
-        while result == 0 and deepest_run < 100:                # While no outcome has been determined yet
+
+        while result == 0 and deepest_run < 80:                # While no outcome has been determined yet and limit has not been reached
             color = 3 - color                                   # Swap color, 1 if color was 2, 2 if color was 1
             moves = board_copy.get_all_possible_moves(color)    # Get all possible moves according to color player
             move = random.choice(random.choice(moves))          # Randomly select a move
             board_copy.make_move(move, color)                   # Perform move
-            result = board_copy.is_win(color)                       # -1 for tie, 1 for black win, 2 for white win
+            result = board_copy.is_win(color)                   # -1 for tie, 1 for black win, 2 for white win
             deepest_run += 1
-        return 1 if node.get_color() == result else 0 # 1 if winner is same as node color
-                                                                                # or if tie, otherwise 0
+        
+        return result
        
     
-    def backpropagate(self, node: Node, reward: int) -> None:
+    def backpropagate(self, node: Node, result: int) -> None:
         """ Backpropagate and update statistics
             @param: node - child Node created from expansion
                     reward - win value of node, 1 if win/tie, 0 if loss
         """
         if node == None:                                  # If node is none, then this is the tree root node
             return
-        node.update_node(reward)                          # Update the values of the current node
+        node.update_node(result)                          # Update the values of the current node
         if node.get_parent() == None:                     # If parent node is none, no more propagation
             return
-        self.backpropagate(node.get_parent(), 1 - reward) # Propagate to previous node, flip reward value
+        self.backpropagate(node.get_parent(), result)     # Propagate to previous node
 
     def select_move(self, node: Node) -> Move:
         """ Retrieves the best move to make at the current node/state
@@ -243,8 +258,8 @@ class MCTS:
         for _ in range(self.num_simulations):       # Runs for specified number of iterations
             leaf = self.select(node)                # Select a leaf node to perform expansion
             new_child = self.expand(leaf)           # Create child node from leaf node                   
-            reward = self.simulate(new_child)       # Simulate game from the child node and retrieve the outcome                   
-            self.backpropagate(new_child, reward)   # Update all previous values based on the reward outcome
+            result = self.simulate(new_child)       # Simulate game from the child node and retrieve the outcome      
+            self.backpropagate(new_child, result)   # Update all previous values based on the outcome
 
         return self.select_move(node)               # Select the best move from the current node
 
