@@ -1,6 +1,7 @@
 import math
 import random
-from typing import List, Tuple
+import time
+from typing import List
 from BoardClasses import Move
 from BoardClasses import Board
 from BoardClasses import Checker
@@ -20,24 +21,36 @@ class StudentAI():
         self.opponent = {1:2,2:1}
         self.color = 2
         self.root = None
+        self.turns = 0
+        self.time = 0
     def get_move(self,move):
+        start = time.time()
+        self.turns += 1
         if len(move) != 0:
             self.board.make_move(move,self.opponent[self.color])
+            if self.root:
+                self.root = self.root.make_move(move)                               # If root exists, update tree
+            # else:
+            #     print("Root doesn't exist for opponent", file=file)
         else:
             self.color = 1
 
         moves = self.board.get_all_possible_moves(self.color)
-        # print("New turn", file=file)
         
-        if len(moves) == 1 and len(moves[0]) == 1:                          # If only one move, just perform that move
+        if len(moves) == 1 and len(moves[0]) == 1:                                  # If only one move, just perform that move
             move = moves[0][0]
         else:
-            root = Node(None, self.opponent[self.color], None, self.board)  # Create first node of the tree
-            tree = MCTS()                                                   # Create tree structure
-            move = tree.search(root)                                        # Return the best move to make from the root node
+            if self.root == None:                                                   # If root does not exist, create new tree
+                # print("Root doesn't exist for player on turn",self.turns, file=file)
+                self.root = Node(None, self.opponent[self.color], None, self.board) # Create first node of the tree
+            tree = MCTS()                                                           # Create tree structure
+            move = tree.search(self.root)                                           # Return the best move to make from the root node
 
-        self.board.make_move(move,self.color)                               # Perform the move
-        # print(file=file)
+        self.board.make_move(move,self.color)                                       # Perform the move
+        if self.root:
+            self.root = self.root.make_move(move)                                   # Update tree
+        # self.time += time.time() - start
+        # print("total time at turn",self.turns,"is", self.time, file=file)
         return move
 
 
@@ -255,7 +268,11 @@ class MCTS:
             @param:  node - Node representing current state, tree root node
             @return: Move representing best move based on UCT value
         """
-        for _ in range(self.num_simulations):       # Runs for specified number of iterations
+        remaining = node.board.black_count + node.board.white_count
+        num_iters = self.num_iterations(remaining, node.board.p, node.board.col, self.num_simulations)
+        # with open("results.txt", "a") as f:
+        #     print(num_iters, file=f)
+        for _ in range(num_iters):                  # Runs for specified number of iterations
             leaf = self.select(node)                # Select a leaf node to perform expansion
             new_child = self.expand(leaf)           # Create child node from leaf node                   
             result = self.simulate(new_child)       # Simulate game from the child node and retrieve the outcome      
@@ -263,3 +280,15 @@ class MCTS:
 
         return self.select_move(node)               # Select the best move from the current node
 
+    def num_iterations(self, remaining: int, p: int, col: int, max_iter: int, min_iter=200, d=3) -> int:
+        """ Calculate the number of iterations needed based on maximum(min, max(remaining/starting ^ d))
+            @param:  remaining - number of total pieces on the current board
+                    p - number of rows filled with pieces at the start
+                    col - number of columns in the board
+                    max - maximum number of iterations to make, start at num_simulations
+                    min - minimum number of iterations to make, defaults to 20
+                    d - branching factor, defaults to 4
+            @return: integer representing number of necessary iterations
+        """
+        starting = p * col
+        return max(min_iter, int(max_iter * ((remaining / starting) ** d)))
