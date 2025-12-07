@@ -1,14 +1,13 @@
 import math
 import random
-import time
 from typing import List
 from BoardClasses import Move
 from BoardClasses import Board
 from BoardClasses import Checker
 #The following part should be completed by students.
 #Students can modify anything except the class name and exisiting functions and varibles.
-EXPLORATION_PARAM = .5 # C constant for UCT calculations
-# file=open("results.txt","a")
+EXPLORATION_PARAM = 1 # C constant for UCT calculations
+
 class StudentAI():
 
     def __init__(self,col,row,p):
@@ -21,17 +20,11 @@ class StudentAI():
         self.opponent = {1:2,2:1}
         self.color = 2
         self.root = None
-        self.turns = 0
-        self.time = 0
     def get_move(self,move):
-        start = time.time()
-        self.turns += 1
         if len(move) != 0:
             self.board.make_move(move,self.opponent[self.color])
             if self.root:
                 self.root = self.root.make_move(move)                               # If root exists, update tree
-            # else:
-            #     print("Root doesn't exist for opponent", file=file)
         else:
             self.color = 1
 
@@ -41,7 +34,6 @@ class StudentAI():
             move = moves[0][0]
         else:
             if self.root == None:                                                   # If root does not exist, create new tree
-                # print("Root doesn't exist for player on turn",self.turns, file=file)
                 self.root = Node(None, self.opponent[self.color], None, self.board) # Create first node of the tree
             tree = MCTS()                                                           # Create tree structure
             move = tree.search(self.root)                                           # Return the best move to make from the root node
@@ -49,8 +41,6 @@ class StudentAI():
         self.board.make_move(move,self.color)                                       # Perform the move
         if self.root:
             self.root = self.root.make_move(move)                                   # Update tree
-        # self.time += time.time() - start
-        # print("total time at turn",self.turns,"is", self.time, file=file)
         return move
 
 
@@ -233,7 +223,7 @@ class MCTS:
         board_copy = copy_board(node.board)
         deepest_run = 0
 
-        while result == 0 and deepest_run < 80:                # While no outcome has been determined yet and limit has not been reached
+        while result == 0 and deepest_run < 80:                 # While no outcome has been determined yet and limit has not been reached
             color = 3 - color                                   # Swap color, 1 if color was 2, 2 if color was 1
             moves = board_copy.get_all_possible_moves(color)    # Get all possible moves according to color player
             move = random.choice(random.choice(moves))          # Randomly select a move
@@ -261,7 +251,16 @@ class MCTS:
             @param:  node - Node representing current state, tree root node
             @return: Move representing the best move based on UCT value
         """
-        return node.get_best_child().get_move()
+        # return node.get_best_child().get_move()
+        best_node = None
+        best = 0
+        
+        for child in node.children:
+            if child.wins / child.total_games > best:
+                best = child.wins / child.total_games
+                best_node = child
+        
+        return best_node.get_move()
 
     def search(self, node: Node) -> Move:
         """ Perform MCTS to find the best move to take at a specific turn
@@ -270,8 +269,7 @@ class MCTS:
         """
         remaining = node.board.black_count + node.board.white_count
         num_iters = self.num_iterations(remaining, node.board.p, node.board.col, self.num_simulations)
-        # with open("results.txt", "a") as f:
-        #     print(num_iters, file=f)
+        
         for _ in range(num_iters):                  # Runs for specified number of iterations
             leaf = self.select(node)                # Select a leaf node to perform expansion
             new_child = self.expand(leaf)           # Create child node from leaf node                   
